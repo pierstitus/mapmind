@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<!--
+	LICENSE
+	MapMind was developed by Harmen G. Zijp at the Cooperative University of Amersfoort. The code is distributed under the Simple Public License 2.0 which can be found at https://opensource.org/licenses/Simple-2.0
+	
+	Contact: harmen [at] universiteitamersfoort [dot] nl
+-->
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+		
+		<title>MapMind</title>
+		<link rel="stylesheet" href="ol.css" type="text/css">
+		<link rel="stylesheet" href="mapmind.css" type="text/css">
+		<script src="ol.js" type="text/javascript"></script>
+		<script src="proj4.js" type="text/javascript"></script>
+		<script src="webgl-utils.js" type="text/javascript"></script>
+		<script src="geotiff.js" type="text/javascript"></script>
+		<script src="glDrawAHN.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<div id="no-webgl" class="alert alert-error" style="display: none">
+			Deze pagina werkt alleen met een browser die <a href="http://get.webgl.org/">WebGL</a> ondersteunt.
+		</div>
+		
+		<div id="map"></div>
+		
+		<div id="loadingicon" class="cssload-clock"></div>
+		
+		<div id="controls">
+			<div id="no-ahn">
+				De hoogtekaart is niet beschikbaar<br/>
+				op dit schaalniveau, zoom verder in...
+			</div>
+			<div id="watercontrol">
+				<table>
+					<tr class="hideonmobile">
+						<th>acties</th>
+						<td>
+							<span onclick="addSource();" data-tooltip="Voeg een bron toe op de kaart"><img class="icon" src="source.svg"/></span>
+							<span onclick="addSink();" data-tooltip="Voeg een put toe op de kaart"><img class="icon" src="sink.svg"/></span>
+							<span onclick="sculpt();" data-tooltip="Interpoleer de hoogtes tussen twee punten op de kaart"><img class="icon" src="shovel.svg"/></span>
+							<span onclick="togglesimulation();" data-tooltip="Start/stop simulatie"><img id="playicon" class="icon" src="play.svg"/></span>
+							<span onclick="togglerain();" data-tooltip="Neerslag aan/uit"><img id="rainicon" class="icon" src="rainoff.svg"/></span>
+						</td>
+					</tr>
+					<tr class="hideonmobile">
+						<th>hoogte</th>
+						<td id="elevation"></td>
+					</tr>
+					<tr>
+						<th>waterpeil</th>
+						<td><input type="range" id="waterlevel" value="0" style="width:100px; margin-left:0px;" /><span id="peil"></span></td>
+					</tr>
+					<tr class="hideonmobile">
+						<th>dataset</th>
+						<td>
+							<select id="dataset">
+								<option value="int" selected="selected">opgevuld</option>
+								<option value="non">niet opgevuld</option>
+								<option value="ruw">ruw raster</option>
+							</select>
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div id="logo">
+				<a href="http://universiteitamersfoort.nl"><img src="cua.png" /></a>
+			</div>
+			<h2><input type="checkbox" id="showahn" onclick="toggleahn(this);" /> toon hoogtekaart</h2>
+		</div>
+		
+		<script>
+			"use strict";
+			
+			// define projection for 28992 Amersfoort / RD New (Rijksdriehoekscoördinaten)
+			proj4.defs("EPSG:28992","+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155022 +y_0=463015 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs");
+			
+			var projection = new ol.proj.Projection({
+				code: 'EPSG:28992',
+				extent: [-285401.92,22598.08,595401.92,903402.0]
+			});
+			
+			// generate resolutions and matrixIds arrays for PDOK WMTS
+			var resolutions = [3440.64, 1720.32, 860.16, 430.08, 215.04, 107.52, 53.76, 26.88, 13.44, 6.72, 3.36, 1.68, 0.84, 0.42]
+			var matrixIds = new Array(14);
+			for (var z = 0; z < 15; ++z) matrixIds[z] = 'EPSG:28992:' + z;
+			var tileGrid = new ol.tilegrid.WMTS({
+				origin: ol.extent.getTopLeft(projection.getExtent()),
+				resolutions: resolutions,
+				matrixIds: matrixIds
+			});
+			
+			// create background layer
+			var topografie = new ol.layer.Tile({
+				source: new ol.source.WMTS({
+					url: 'http://geodata.nationaalgeoregister.nl/tiles/service/wmts/brtachtergrondkaart',
+					crossOrigin: 'anonymous',
+					layer: 'brtachtergrondkaart',
+					format: 'image/png',
+					matrixSet: 'EPSG:28992',
+					tileGrid: tileGrid,
+					attributions: [
+						new ol.Attribution({
+							html: 'Software: <a href="https://opensource.org/licenses/Simple-2.0">SimPL-2.0</a> <a target="_blank" href="view-source:http://www.mapmind.org/">Harmen G.Zijp</a><br/>Kaartgegevens: <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.nl">CC-BY-SA</a> <a href="http://www.osm.org">OSM</a> & <a href="http://www.kadaster.nl">Kadaster</a>, <a href="http://creativecommons.org/publicdomain/zero/1.0/deed.nl">CC-0</a> <a href="http://www.ahn.nl/index.html">AHN</a>.'
+						})
+					],
+					style: 'default',
+					dimensions: {
+						'threshold': 100
+					}
+				}),
+			});
+			
+			// perform webgl check and show error message when not available
+			if (!ol.has.WEBGL) document.getElementById('no-webgl').style.display = '';
+			
+			function loadShader(url, id, type) {
+				var request = new XMLHttpRequest();
+				request.open('POST', url, true);
+				request.overrideMimeType("text/plain");
+				request.addEventListener('load', function() {
+					var script = document.createElement('script');
+					script.setAttribute("id", id);
+					script.setAttribute("type", type);
+					script.text = request.responseText;
+					document.getElementsByTagName("head")[0].appendChild(script);
+				});
+				request.send();
+			}
+			
+			loadShader("colormap.vsh", "colormap-vertex-shader", "x-shader/x-vertex");
+			loadShader("colormap.fsh", "colormap-fragment-shader", "x-shader/x-fragment");
+			loadShader("automaton.vsh", "automaton-vertex-shader", "x-shader/x-vertex");
+			loadShader("automaton.fsh", "automaton-fragment-shader", "x-shader/x-fragment");
+			loadShader("sculpt.vsh", "sculpt-vertex-shader", "x-shader/x-vertex");
+			loadShader("sculpt.fsh", "sculpt-fragment-shader", "x-shader/x-fragment");
+			
+			// create AHN overlay
+			var ahnLoaded = false;
+			var ahnAvailable = false;
+			var ahnManipulate = false;
+			var ahnDrag = false;
+			var ahnState = 'init';
+			var bbox;
+			var width;
+			var height;
+			var gl;
+			var data;
+			var zmin, zmax;
+			var nodata;
+			var level = 0.0;
+			var dw = 0.01;
+			var raining = false;
+			var simulate = false;
+			var maxSources = 16;
+			var sourcesCoordList = new Float32Array(32);
+			var maxSinks = 16;
+			var sinksCoordList = new Float32Array(32);
+			
+			var shaderColormap;
+			var shaderAutomaton;
+			var shaderSculpt;
+			
+			var texCoordBuffer;
+			var fboCoordBuffer;
+			var textureElevationA;
+			var textureElevationB;
+			var textureWaterLevelA;
+			var textureWaterLevelB;
+			var fboWaterLevelA;
+			var fboWaterLevelB;
+			var fboElevationA;
+			var fboElevationB;
+			
+			var glCanvas = null;
+			
+			var ahnInit = function(extent, resolution, pixelRatio, size, projection) {
+				if (glCanvas) glCanvas.remove();
+				glCanvas = document.createElement("canvas");
+				glCanvas.setAttribute('width', size[0]);
+				glCanvas.setAttribute('height', size[1]);
+				gl = getWebGLContext(glCanvas, {}, {noTitle: true});
+				
+				// Get A WebGL context
+				if (!gl) {
+					alert('no webgl context');
+					return;
+				}
+				// Enable float textures
+				var floatTextures = gl.getExtension('OES_texture_float');
+				if (!floatTextures) {
+					alert('no floating point texture support');
+					return;
+				}
+				
+				// Create vertex buffer for the texture coordinates
+				texCoordBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+				gl.bufferData(
+					gl.ARRAY_BUFFER,
+					new Float32Array([
+						0.0,	0.0,
+						1.0,	0.0,
+						0.0,	1.0,
+						0.0,	1.0,
+						1.0,	0.0,
+						1.0,	1.0]),
+					gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				
+				// Load shader programs
+				shaderColormap = createProgramFromScripts(gl, ["colormap-vertex-shader", "colormap-fragment-shader"]);
+				shaderAutomaton = createProgramFromScripts(gl, ["automaton-vertex-shader", "automaton-fragment-shader"]);
+				shaderSculpt = createProgramFromScripts(gl, ["sculpt-vertex-shader", "sculpt-fragment-shader"]);
+				
+				// Create empty waterlevel texture A
+				textureWaterLevelA = gl.createTexture();
+				gl.bindTexture(gl.TEXTURE_2D, textureWaterLevelA);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+					gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+				
+				// Create waterlevel framebuffer A and attach texture to it
+				fboWaterLevelA = gl.createFramebuffer();
+				gl.bindFramebuffer(gl.FRAMEBUFFER, fboWaterLevelA);
+					fboWaterLevelA.width = width;
+					fboWaterLevelA.height = height;
+					gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureWaterLevelA, 0);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				
+				// Create empty waterlevel texture B
+				textureWaterLevelB = gl.createTexture();
+				gl.bindTexture(gl.TEXTURE_2D, textureWaterLevelB);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+					gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+				
+				// Create waterlevel framebuffer B and attach texture to it
+				fboWaterLevelB = gl.createFramebuffer();
+				gl.bindFramebuffer(gl.FRAMEBUFFER, fboWaterLevelB);
+					fboWaterLevelB.width = width;
+					fboWaterLevelB.height = height;
+					gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureWaterLevelB, 0);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				
+				fboCoordBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, fboCoordBuffer);
+				gl.bufferData(
+					gl.ARRAY_BUFFER,
+					new Float32Array([
+						0, 0,
+						width, 0,
+						0, height,
+						0, height,
+						width, 0,
+						width, height]),
+					gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				
+				loaddata();
+				
+				document.getElementById('map').onmousemove = function(event) {
+					if (!ahnManipulate && !ahnDrag) {
+						var x = event.clientX;
+						var y = event.clientY;
+						var h = data[y*width+x];
+						document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + 'm tov NAP';
+					}
+				}
+				ahnState = 'draw';
+			}
+			
+			var ahnGL = new ol.source.ImageCanvas({
+				canvasFunction: function(extent, resolution, pixelRatio, size, projection) {
+					switch(ahnState) {
+						case 'init': return ahnInit(extent, resolution, pixelRatio, size, projection); break;
+						case 'draw': if (ahn.getVisible() && ahnAvailable && ahnLoaded) return ahnDraw(extent, resolution, pixelRatio, size, projection); break;
+						case 'play': if (ahnLoaded && simulate) return ahnSimulate(extent, resolution, pixelRatio, size, projection); break;
+					}
+				}
+			});
+			
+			var ahn = new ol.layer.Image({
+				source: ahnGL,
+				opacity: 0.8,
+				visible: false
+			});
+			
+			var sourcesList = new ol.source.Vector({
+				features: []
+			});
+			
+			var sources = new ol.layer.Vector({
+				source: sourcesList,
+				style: new ol.style.Style({
+					image: new ol.style.Icon(/** @type {olx.style.IconOptions} */ ({
+						anchor: [0.5, 0.5],
+						anchorXUnits: 'fraction',
+						anchorYUnits: 'fraction',
+						src: 'source.png'
+					}))
+				})
+			});
+			
+			var sinksList = new ol.source.Vector({
+				features: []
+			});
+			
+			var sinks = new ol.layer.Vector({
+				source: sinksList,
+				style: new ol.style.Style({
+					image: new ol.style.Icon(/** @type {olx.style.IconOptions} */ ({
+						anchor: [0.5, 0.5],
+						anchorXUnits: 'fraction',
+						anchorYUnits: 'fraction',
+						src: 'sink.png'
+					}))
+				})
+			});
+			
+			var map = new ol.Map({
+				layers: [
+					topografie,
+					ahn,
+					sources,
+					sinks
+				],
+				renderer: 'canvas',
+				target: 'map',
+				projection: 'EPSG:28992',
+				view: new ol.View({
+					center: ol.proj.transform([5.38763888888889, 52.15616055555555], 'EPSG:4326', 'EPSG:28992'),
+					zoom: 16
+				})
+			});
+			
+			// code to rescale map and ahn overlay when zooming or changing window size
+			function ahnRedisplay() {
+				// check if bounding box is in line with capabilities of the WCS server
+				var size = map.getSize();
+				width = size[0];
+				height = size[1];
+				bbox = map.getView().calculateExtent(size);
+				var pixels = (bbox[2]-bbox[0])*(bbox[3]-bbox[1]);
+				ahnAvailable =	bbox[0]>13000.0 &&
+								bbox[1]>306250.0 &&
+								bbox[2]<279000.0 &&
+								bbox[3]<616250.0 &&
+								pixels>6400000 ?
+								false : true;
+				
+				if (ahn.getVisible()) {
+					document.getElementById('watercontrol').style.display = ahnAvailable ? 'block' : 'none';
+					document.getElementById('no-ahn').style.display = ahnAvailable ? 'none' : 'block';
+					document.getElementById('map').style.cursor = ahnAvailable ? 'crosshair' : 'default';
+				}
+				
+				if (ahnAvailable && ahn.getVisible()) {
+					ahnState = 'init';
+					ahn.getSource().changed();
+				}
+				else document.getElementById('map').onmousemove = null;
+			}
+			
+			window.addEventListener("resize", ahnRedisplay);
+			
+			document.getElementById('map').onmousedown = function(e) {
+				if (!ahnManipulate) ahnDrag = true;
+			}
+			
+			document.getElementById('map').onmouseup = function(e) {
+				if (ahnDrag) {
+					ahnDrag = false;
+					ahnRedisplay();
+				}
+			}
+			
+			document.getElementById('map').ontouchstart = function(e) {
+				if (!ahnManipulate) ahnDrag = true;
+			}
+			
+			document.getElementById('map').ontouchend = function(e) {
+				if (ahnDrag) {
+					ahnDrag = false;
+					ahnRedisplay();
+				}
+			}
+			
+			ahnRedisplay();
+			
+			function toggleahn(obj) {
+				if (obj.checked) {
+					ahn.setVisible(true);
+					document.getElementById('logo').style.display = 'none';
+					document.getElementById('watercontrol').style.display = 'block';
+					if (!ahnLoaded) ahnRedisplay();
+				}
+				else {
+					ahn.setVisible(false);
+					document.getElementById('logo').style.display = 'block';
+					document.getElementById('watercontrol').style.display = 'none';
+				}
+			}
+			
+			// callback routines for zoom and drag operations
+			map.getView().on('propertychange', function(e) {
+				switch (e.key) {
+					case 'zoom':
+					case 'center':
+					case 'resolution':
+						ahnLoaded = false;
+						if (!ahnDrag) ahnRedisplay();
+						break;
+				}
+			});
+			
+			var registerNewSource = function(e) {
+				var newSource = new ol.Feature({
+					geometry: new ol.geom.Point(e.coordinate)
+					//,capacity: 1
+				});
+				sourcesList.addFeature(newSource);
+				document.getElementById('map').style.cursor = 'crosshair';
+				map.un('click', registerNewSource);
+				ahnManipulate = false;
+			}
+			
+			function addSource() {
+				if (sourcesList.getFeatures().length<maxSources) {
+					ahnManipulate = true;
+					document.getElementById('map').style.cursor = "url('source.png') 18 18, auto";
+					map.on('click', registerNewSource);
+				}
+				else alert('cannot add more than ' + maxSources + ' sources!');
+			}
+			
+			var registerNewSink = function(e) {
+				var newSink = new ol.Feature({
+					geometry: new ol.geom.Point(e.coordinate)
+					//,capacity: 1
+				});
+				sinksList.addFeature(newSink);
+				document.getElementById('map').style.cursor = 'crosshair';
+				map.un('click', registerNewSink);
+				ahnManipulate = false;
+			}
+			
+			function addSink() {
+				if (sourcesList.getFeatures().length<maxSources) {
+					ahnManipulate = true;
+					document.getElementById('map').style.cursor = "url('sink.png') 18 18, auto";
+					map.on('click', registerNewSink);
+				}
+				else alert('cannot add more than ' + maxSinks + ' sinks!');
+			}
+			
+			var elevationInterpolationData = new ol.source.Vector({wrapX: false});
+			
+			var interpolation = new ol.layer.Vector({
+				source: elevationInterpolationData,
+				style: new ol.style.Style({
+					fill: new ol.style.Fill({
+						color: 'rgba(255, 255, 255, 0.2)'
+					}),
+					stroke: new ol.style.Stroke({
+						color: '#ffcc33',
+						width: 2
+					}),
+					image: new ol.style.Circle({
+						radius: 7,
+						fill: new ol.style.Fill({
+							color: '#ffcc33'
+						})
+					})
+				})
+			});
+			
+			map.addLayer(interpolation);
+			
+			var drawInterpolation; // global so we can remove it later
+			
+			function sculpt() {
+				ahnManipulate = true;
+				elevationInterpolationData.clear();
+				drawInterpolation = new ol.interaction.Draw({
+					source: elevationInterpolationData,
+					type: 'LineString',
+					maxPoints: 2
+				});
+				interpolation.setVisible(true);
+				map.addInteraction(drawInterpolation);
+				drawInterpolation.on('drawend', function(e) {
+					var feature = e.feature;
+					var geometry = feature.getGeometry();
+					var coordinates = geometry.getCoordinates();
+					
+					var startCoord = geometry.getFirstCoordinate();
+					var endCoord = geometry.getLastCoordinate();
+					
+					var startCoord = map.getPixelFromCoordinate(coordinates[0]);
+					var endCoord = map.getPixelFromCoordinate(coordinates[coordinates.length-1]);
+					ahnInterpolate(startCoord, endCoord);
+					
+					interpolation.setVisible(false);
+					map.removeInteraction(drawInterpolation);
+					
+					ahn.getSource().changed();
+					
+					ahnManipulate = false;
+				});
+			}
+			
+			function togglerain(obj) {
+				raining = !raining;
+				document.getElementById('rainicon').src = raining ? 'rainon.svg' : 'rainoff.svg';
+			}
+			
+			var simfunc;
+			function togglesimulation(obj) {
+				simulate = !simulate;
+				document.getElementById('playicon').src = simulate ? 'pause.svg' : 'play.svg';
+				if (simulate) {
+					for (var i=0; i<sourcesList.getFeatures().length; i++) {
+						var coord = sourcesList.getFeatures()[i].getGeometry().getCoordinates();
+						var pixcoord = map.getPixelFromCoordinate(coord);
+						sourcesCoordList[2*i] = pixcoord[0]/width;
+						sourcesCoordList[2*i+1] = pixcoord[1]/height;
+					}
+					for (var i=0; i<sinksList.getFeatures().length; i++) {
+						var coord = sinksList.getFeatures()[i].getGeometry().getCoordinates();
+						var pixcoord = map.getPixelFromCoordinate(coord);
+						sinksCoordList[2*i] = pixcoord[0]/width;
+						sinksCoordList[2*i+1] = pixcoord[1]/height;
+					}
+					ahn.getSource().changed();
+				}
+			}
+			
+			function loaddata() {
+				document.getElementById('loadingicon').style.visibility = 'visible';
+				
+				var dataset = document.getElementById('dataset').value;
+				var ahn2 = "http://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=ahn2:ahn2_05m_" + dataset + "&crs=EPSG:28992&bbox=" + bbox + "&width=" + width + "&height=" + height + "&format=image/tiff";
+				
+				var xhr = new XMLHttpRequest();
+				xhr.open('GET', ahn2, true);
+				xhr.responseType = 'arraybuffer';
+				xhr.onload = function(e) {
+					// get data from tiff file
+					var tiff = GeoTIFF.parse(this.response).getImage();
+					data = tiff.readRasters({samples: [0]})[0];
+					
+					// get min and max elevation
+					zmin = Number.MAX_VALUE;
+					zmax = Number.MIN_VALUE;
+					nodata = -3.4028234663852886e+38;
+					for (var i=0;i<data.length;i++) {
+						if (data[i]!=nodata) {
+							zmin = Math.min(zmin, data[i]);
+							zmax = Math.max(zmax, data[i]);
+						}
+						else {
+							var y = Math.floor(i/width);
+							var x = i - y*width;
+							var xm = x;
+							while(xm>=0) {
+								if (data[y*width + xm]!=nodata) break;
+								xm--;
+							}
+							var xp = x;
+							while(xp<width) {
+								if (data[y*width + xp]!=nodata) break;
+								xp++;
+							}
+							var ym = y;
+							while(ym>=0) {
+								if (data[ym*width + x]!=nodata) break;
+								ym--;
+							}
+							var yp = y;
+							while(yp<height) {
+								if (data[yp*width + x]!=nodata) break;
+								yp++;
+							}
+							var a = 0.0;
+							var n = 0;
+							if (xm>=0 && xp<width) {
+								a+= data[y*width + xp]*(x-xm)/(xp-xm) + data[y*width + xm]*(xp-x)/(xp-xm);
+								n++;
+							}
+							if (ym>=0 && yp<width) {
+								a+= data[yp*width + x]*(y-ym)/(yp-ym) + data[ym*width + x]*(yp-y)/(yp-ym);
+								n++;
+							}
+							if (n) data[i] = a/n;
+						}
+					}
+					
+					// write elevation data into texture data
+					var pixels = new Float32Array(width*height*4);
+					for (var i=0;i<data.length;i++) {
+						if (data[i]!=nodata) pixels[4*i] = (data[i]-zmin)/(zmax-zmin);
+						else pixels[4*i] = 0;
+						pixels[4*i+1] = 0;
+						pixels[4*i+2] = 0;
+						pixels[4*i+3] = 0;
+					}
+					
+					// Create elevation texture
+					textureElevationA = gl.createTexture();
+					gl.bindTexture(gl.TEXTURE_2D, textureElevationA);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, pixels);
+					gl.bindTexture(gl.TEXTURE_2D, null);
+					
+					// Create waterlevel framebuffer B and attach texture to it
+					fboElevationA = gl.createFramebuffer();
+					gl.bindFramebuffer(gl.FRAMEBUFFER, fboElevationA);
+						fboElevationA.width = width;
+						fboElevationA.height = height;
+						gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureElevationA, 0);
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+					
+					// Create elevation texture
+					textureElevationB = gl.createTexture();
+					gl.bindTexture(gl.TEXTURE_2D, textureElevationB);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+						gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, pixels);
+					gl.bindTexture(gl.TEXTURE_2D, null);
+					
+					// Create waterlevel framebuffer B and attach texture to it
+					fboElevationB = gl.createFramebuffer();
+					gl.bindFramebuffer(gl.FRAMEBUFFER, fboElevationB);
+						fboElevationB.width = width;
+						fboElevationB.height = height;
+						gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureElevationB, 0);
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+					
+					var waterlevel = document.getElementById("waterlevel").value;
+					if (waterlevel<zmin) waterlevel = zmin;
+					else if (waterlevel>zmax) waterlevel = zmax;
+					
+					document.getElementById("waterlevel").min = zmin;
+					document.getElementById("waterlevel").max = zmax;
+					document.getElementById("waterlevel").value = waterlevel;
+					document.getElementById("peil").innerHTML = parseFloat(waterlevel).toFixed(2) + 'm';
+					level = (waterlevel-zmin)/(zmax-zmin);
+					
+					document.getElementById("waterlevel").step = (zmax-zmin)/100;
+					document.getElementById("waterlevel").oninput = function() {
+						document.getElementById("peil").innerHTML = parseFloat(document.getElementById("waterlevel").value).toFixed(2) + 'm';
+						level = (document.getElementById("waterlevel").value-zmin)/(zmax-zmin);
+						ahn.getSource().changed();
+					}
+					document.getElementById("dataset").onchange = function() {
+						ahnLoaded = false;
+						ahnRedisplay();
+					}
+					
+					ahnLoaded = true;
+					ahn.getSource().changed();
+					
+					document.getElementById('loadingicon').style.visibility = 'hidden';
+				}
+				xhr.send();
+			}
+		</script>
+		
+<!--		<script src="loader.js?id=mobile-full-screen" type="text/javascript"></script>-->
+	</body>
+</html>
