@@ -1,0 +1,84 @@
+{
+	"nl": {
+		"projection": {
+			"epsg": "EPSG:28992",
+			"proj4def": "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155022 +y_0=463015 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs",
+			"extent": [-285401.92,22598.08,595401.92,903402.0]
+		},
+		"backgroundmap": {
+			"wmts": "https://geodata.nationaalgeoregister.nl/tiles/service/wmts/brtachtergrondkaart",
+			"layer": "brtachtergrondkaart",
+			"resolutions": [3440.64, 1720.32, 860.16, 430.08, 215.04, 107.52, 53.76, 26.88, 13.44, 6.72, 3.36, 1.68, 0.84, 0.42]
+		},
+		"elevationmap": {
+			"wcs": "\"https://geodata.nationaalgeoregister.nl/ahn3/wcs?SERVICE=WCS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=GEOTIFF_FLOAT32&COVERAGE=ahn3_05m_\" + settings.dataset + \"&BBOX=\" + bbox + \"&CRS=EPSG:28992&RESPONSE_CRS=EPSG:28992&WIDTH=\" + width + \"&HEIGHT=\" + height"
+		},
+		"init": {
+			"coords": [5.38763888888889, 52.15616055555555],
+			"zoom": 16,
+			"dataset": "DTM",
+			"level": 0.0
+		},
+		"language": {
+			"actions": "acties",
+			"elevation": "hoogte",
+			"waterlevel": "waterpeil",
+			"waterlevelunit": "m + NAP",
+			"dataset": "dataset",
+			"terrain": "maaiveld",
+			"surface": "ruwe data",
+			"addsource": "Voeg een bron toe op de kaart",
+			"addsink": "Voeg een put toe op de kaart",
+			"sculpt": "Interpoleer de hoogtes tussen twee punten op de kaart",
+			"togglesimulation": "Start/stop simulatie",
+			"togglerain": "Neerslag aan/uit",
+			"share": "Deel",
+			"showelevationmap": "toon hoogtekaart",
+			"hideelevationmap": "verberg hoogtekaart",
+			"urlcopied": "url is naar het klembord gekopieerd",
+			"attribution": "Software: <a href=\"https://opensource.org/licenses/Simple-2.0\">SimPL-2.0</a> <a target=\"_blank\" href=\"view-source:https://www.mapmind.org/\">Harmen G.Zijp</a><br/>Kaartgegevens: <a href=\"https://creativecommons.org/licenses/by-sa/4.0/deed.nl\">CC-BY-SA</a> <a href=\"https://www.osm.org\">OSM</a> & <a href=\"https://www.kadaster.nl\">Kadaster</a>, <a href=\"https://creativecommons.org/publicdomain/zero/1.0/deed.nl\">CC-0</a> <a href=\"https://www.ahn.nl/index.html\">AHN</a>.",
+			"warningnowebgl": "Deze pagina werkt alleen met een browser die <a href=\"https://get.webgl.org/\">WebGL</a> ondersteunt."
+		}
+	},
+	"no": {
+		"projection": {
+			"epsg": "EPSG:25833",
+			"proj4def": "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs",
+			"extent": [-2500000.0, 3500000.0, 3045984.0, 9045984.0]
+		},
+		"backgroundmap": {
+			"wmts": "https://opencache.statkart.no/gatekeeper/gk/gk.open_wmts",
+			"layer": "topo4",
+			"resolutions": [21664,10832,5416,2708,1354,677,338.5,169.25,84.625,42.3125,21.15625,10.578125,5.2890625,2.64453125,1.322265625,0.6611328125,0.33056640625,0.165283203125]
+		},
+		"elevationmap": {
+			"wcs": "\"https://wms.geonorge.no/skwms1/wcs.hoyde-\"+ settings.dataset + \"1_33?VERSION=1.0.0&SERVICE=WCS&REQUEST=GetCoverage&format=GeoTIFF&COVERAGE=1&CRS=EPSG:25833&WIDTH=\" + width + \"&HEIGHT=\" + height + \"&BBOX=\" + bbox"
+		},
+		"init": {
+			"coords": [5.354, 60.387],
+			"zoom": 15,
+			"dataset": "dtm",
+			"level": 0.0
+		},
+		"language": {
+			"actions": "handlinger",
+			"elevation": "høyde",
+			"waterlevel": "vannstand",
+			"waterlevelunit": "moh",
+			"dataset": "datasett",
+			"terrain": "terreng",
+			"surface": "overflate",
+			"addsource": "Legg til en kilde på kartet",
+			"addsink": "Legg til en avløp på kartet",
+			"sculpt": "Interpolere høydene mellom to punkter på kartet",
+			"togglesimulation": "Start/stopp simulering",
+			"togglerain": "Nedbør på/av",
+			"share": "Del",
+			"showelevationmap": "vis høydekart",
+			"hideelevationmap": "skjul høydekart",
+			"urlcopied": "url kopiert til utklippstavlen",
+			"attribution": "Software: <a href=\"https://opensource.org/licenses/Simple-2.0\">SimPL-2.0</a> <a target=\"_blank\" href=\"view-source:https://www.mapmind.org/\">Harmen G.Zijp</a><br/>Kaartgegevens: <a href=\"https://creativecommons.org/licenses/by-sa/4.0/deed.nl\">CC-BY-SA</a> <a href=\"https://www.osm.org\">OSM</a> & <a href=\"https://www.kadaster.nl\">Kadaster</a>, <a href=\"https://creativecommons.org/publicdomain/zero/1.0/deed.nl\">CC-0</a> <a href=\"https://www.ahn.nl/index.html\">AHN</a>.",
+			"warningnowebgl": "Deze pagina werkt alleen met een browser die <a href=\"https://get.webgl.org/\">WebGL</a> ondersteunt."
+		}
+	}
+}

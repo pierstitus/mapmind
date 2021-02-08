@@ -1,0 +1,237 @@
+html, body, #map {
+	margin:0px;
+	width:100%;
+	height:100%;
+	overflow:hidden;
+	font-family:Futura;
+	font-size:10pt;
+}
+h2 {
+	margin-top:0px;
+	margin-bottom:0px;
+}
+th {
+	text-align:right;
+}
+.icon {
+	height:18px;
+	margin:0px;
+}
+.flag {
+	height:24px;
+	margin:0px;
+}
+#loadingicon {
+	margin:auto;
+	position:absolute;
+	top:0; left:0; bottom:0; right:0;
+	background-color:#eee;
+	opacity:0.8;
+	visibility:hidden;
+}
+#countries {
+	position:absolute;
+	top:10px;
+	right:10px;
+}
+#controls {
+	position:absolute;
+	bottom:0px;
+	width:240px;
+	border:1px solid black;
+	background-color:#eee;
+	opacity:0.8;
+	padding:4px;
+}
+#watercontrol {
+	display:none;
+}
+#no-ahn {
+	color:#800;
+	display:none;
+}
+@font-face {
+	font-family:Futura;
+	src:url('futura.otf');
+}
+@media only screen and (max-width: 900px) {
+	.hideonmobile {
+		display:none;
+	}
+	#controls {
+		font-size:12pt;
+	}
+}
+
+/* Add this attribute to the element that needs a tooltip */
+[data-tooltip] {
+  position: relative;
+  z-index: 2;
+  cursor: pointer;
+}
+
+/* Hide the tooltip content by default */
+[data-tooltip]:before,
+[data-tooltip]:after {
+  visibility: hidden;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+  filter: progid: DXImageTransform.Microsoft.Alpha(Opacity=0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Position tooltip above the element */
+[data-tooltip]:before {
+  position: absolute;
+  bottom: 150%;
+  left: 50%;
+  margin-bottom: 5px;
+  margin-left: -80px;
+  padding: 7px;
+  width: 160px;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  background-color: #000;
+  background-color: hsla(0, 0%, 20%, 0.9);
+  color: #fff;
+  content: attr(data-tooltip);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+/* Triangle hack to make tooltip look like a speech bubble */
+[data-tooltip]:after {
+  position: absolute;
+  bottom: 150%;
+  left: 50%;
+  margin-left: -5px;
+  width: 0;
+  border-top: 5px solid #000;
+  border-top: 5px solid hsla(0, 0%, 20%, 0.9);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  content: " ";
+  font-size: 0;
+  line-height: 0;
+}
+
+/* Show tooltip content on hover */
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after {
+  visibility: visible;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
+  filter: progid: DXImageTransform.Microsoft.Alpha(Opacity=100);
+  opacity: 1;
+}
+
+/* Animated loader icon */
+.cssload-clock{
+	border-radius: 58px;
+	border: 3px solid rgb(0,0,0);
+	height: 78px;
+	width: 78px;
+	position: relative;
+	left: 35%;
+	left: calc(50% - 42px);
+		left: -o-calc(50% - 42px);
+		left: -ms-calc(50% - 42px);
+		left: -webkit-calc(50% - 42px);
+		left: -moz-calc(50% - 42px);
+}
+.cssload-clock:after{
+	content: "";
+	position: absolute;
+	background-color: rgb(0,0,0);
+	top:2px;
+	left: 48%;
+	height: 37px;
+	width: 4px;
+	border-radius: 5px;
+	transform-origin: 50% 97%;
+		-o-transform-origin: 50% 97%;
+		-ms-transform-origin: 50% 97%;
+		-webkit-transform-origin: 50% 97%;
+		-moz-transform-origin: 50% 97%;
+	animation: grdAiguille 2.3s linear infinite;
+		-o-animation: grdAiguille 2.3s linear infinite;
+		-ms-animation: grdAiguille 2.3s linear infinite;
+		-webkit-animation: grdAiguille 2.3s linear infinite;
+		-moz-animation: grdAiguille 2.3s linear infinite;
+}
+
+
+
+.cssload-clock:before{
+	content: "";
+	position: absolute;
+	background-color: rgb(0,0,0);
+	top:6px;
+	left: 48%;
+	height: 34px;
+	width: 4px;
+	border-radius: 5px;
+	transform-origin: 50% 94%;
+		-o-transform-origin: 50% 94%;
+		-ms-transform-origin: 50% 94%;
+		-webkit-transform-origin: 50% 94%;
+		-moz-transform-origin: 50% 94%;
+	animation: ptAiguille 13.8s linear infinite;
+		-o-animation: ptAiguille 13.8s linear infinite;
+		-ms-animation: ptAiguille 13.8s linear infinite;
+		-webkit-animation: ptAiguille 13.8s linear infinite;
+		-moz-animation: ptAiguille 13.8s linear infinite;
+}
+
+
+
+@keyframes grdAiguille{
+		0%{transform:rotate(0deg);}
+		100%{transform:rotate(360deg);}
+}
+
+@-o-keyframes grdAiguille{
+		0%{-o-transform:rotate(0deg);}
+		100%{-o-transform:rotate(360deg);}
+}
+
+@-ms-keyframes grdAiguille{
+		0%{-ms-transform:rotate(0deg);}
+		100%{-ms-transform:rotate(360deg);}
+}
+
+@-webkit-keyframes grdAiguille{
+		0%{-webkit-transform:rotate(0deg);}
+		100%{-webkit-transform:rotate(360deg);}
+}
+
+@-moz-keyframes grdAiguille{
+		0%{-moz-transform:rotate(0deg);}
+		100%{-moz-transform:rotate(360deg);}
+}
+
+@keyframes ptAiguille{
+		0%{transform:rotate(0deg);}
+		100%{transform:rotate(360deg);}
+}
+
+@-o-keyframes ptAiguille{
+		0%{-o-transform:rotate(0deg);}
+		100%{-o-transform:rotate(360deg);}
+}
+
+@-ms-keyframes ptAiguille{
+		0%{-ms-transform:rotate(0deg);}
+		100%{-ms-transform:rotate(360deg);}
+}
+
+@-webkit-keyframes ptAiguille{
+		0%{-webkit-transform:rotate(0deg);}
+		100%{-webkit-transform:rotate(360deg);}
+}
+
+@-moz-keyframes ptAiguille{
+		0%{-moz-transform:rotate(0deg);}
+		100%{-moz-transform:rotate(360deg);}
+}
