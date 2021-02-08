@@ -11,81 +11,109 @@
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
 		
 		<title>MapMind</title>
-		<link rel="stylesheet" href="ol.css" type="text/css">
-		<link rel="stylesheet" href="mapmind.css" type="text/css">
-		<script src="ol.js" type="text/javascript"></script>
-		<script src="proj4.js" type="text/javascript"></script>
-		<script src="webgl-utils.js" type="text/javascript"></script>
-		<script src="geotiff.js" type="text/javascript"></script>
-		<script src="glDrawAHN.js" type="text/javascript"></script>
+		<link rel="stylesheet" href="style/ol.css" type="text/css">
+		<link rel="stylesheet" href="style/mapmind.css" type="text/css">
+		<link rel="icon" type="image/png" href="img/favicon.ico">
+		<script src="js/ol.js" type="text/javascript"></script>
+		<script src="js/proj4.js" type="text/javascript"></script>
+		<script src="js/webgl-utils.js" type="text/javascript"></script>
+		<script src="js/geotiff.js" type="text/javascript"></script>
+		<script src="js/mapmind.js" type="text/javascript"></script>
 	</head>
-	<body>
-		<div id="no-webgl" class="alert alert-error" style="display: none">
-			Deze pagina werkt alleen met een browser die <a href="http://get.webgl.org/">WebGL</a> ondersteunt.
-		</div>
+	<body onload="parseSettings();">
+		<div id="nowebgl" class="alert alert-error" style="display: none"></div>
 		
 		<div id="map"></div>
 		
 		<div id="loadingicon" class="cssload-clock"></div>
 		
+		<div id="countries">
+			<a href="https://mapmind.org/nl"><img class="flag" src="img/nl.svg"/></a>
+			<a href="https://mapmind.org/no"><img class="flag" src="img/no.svg"/></a>
+		</div>
+		
 		<div id="controls">
-			<div id="no-ahn">
-				De hoogtekaart is niet beschikbaar<br/>
-				op dit schaalniveau, zoom verder in...
-			</div>
 			<div id="watercontrol">
 				<table>
 					<tr class="hideonmobile">
-						<th>acties</th>
+						<th id="label_actions"></th>
 						<td>
-							<span onclick="addSource();" data-tooltip="Voeg een bron toe op de kaart"><img class="icon" src="source.svg"/></span>
-							<span onclick="addSink();" data-tooltip="Voeg een put toe op de kaart"><img class="icon" src="sink.svg"/></span>
-							<span onclick="sculpt();" data-tooltip="Interpoleer de hoogtes tussen twee punten op de kaart"><img class="icon" src="shovel.svg"/></span>
-							<span onclick="togglesimulation();" data-tooltip="Start/stop simulatie"><img id="playicon" class="icon" src="play.svg"/></span>
-							<span onclick="togglerain();" data-tooltip="Neerslag aan/uit"><img id="rainicon" class="icon" src="rainoff.svg"/></span>
+							<span onclick="addSource();" id="label_addsource" data-tooltip="Voeg een bron toe op de kaart"><img class="icon" src="img/source.svg"/></span>
+							<span onclick="addSink();" id="label_addsink" data-tooltip="Voeg een put toe op de kaart"><img class="icon" src="img/sink.svg"/></span>
+							<span onclick="sculpt();" id="label_sculpt" data-tooltip="Interpoleer de hoogtes tussen twee punten op de kaart"><img class="icon" src="img/shovel.svg"/></span>
+							<span onclick="togglesimulation();" id="label_togglesimulation" data-tooltip="Start/stop simulatie"><img id="playicon" class="icon" src="img/play.svg"/></span>
+							<span onclick="togglerain();" id="label_togglerain" data-tooltip="Neerslag aan/uit"><img id="rainicon" class="icon" src="img/rainoff.svg"/></span>
+							<span onclick="shareSettings();" id="label_share" data-tooltip="Deel"><img id="shareicon" class="icon" src="img/share.svg"/></span>
 						</td>
 					</tr>
 					<tr class="hideonmobile">
-						<th>hoogte</th>
+						<th id="label_elevation"></th>
 						<td id="elevation"></td>
 					</tr>
 					<tr>
-						<th>waterpeil</th>
-						<td><input type="range" id="waterlevel" value="0" style="width:100px; margin-left:0px;" /><span id="peil"></span></td>
+						<th id="label_waterlevel"></th>
+						<td><input type="range" id="waterlevel" value="0" style="width:80px; margin-left:0px;" /><input type="number" id="level" value="0" style="width:50px; margin-left:0px;" /> m</td>
 					</tr>
 					<tr class="hideonmobile">
-						<th>dataset</th>
+						<th id="label_dataset"></th>
 						<td>
 							<select id="dataset">
-								<option value="int" selected="selected">opgevuld</option>
-								<option value="non">niet opgevuld</option>
-								<option value="ruw">ruw raster</option>
+								<option value="DTM" id="label_terrain" selected="selected"></option>
+								<option value="DSM" id="label_surface"></option>
 							</select>
 						</td>
 					</tr>
 				</table>
 			</div>
 			<div id="logo">
-				<a href="http://universiteitamersfoort.nl"><img src="cua.png" /></a>
+				<a href="https://universiteitamersfoort.nl"><img src="img/cua.png" /></a>
 			</div>
-			<h2><input type="checkbox" id="showahn" onclick="toggleahn(this);" /> toon hoogtekaart</h2>
+			<button id="showahn" onclick="toggleahn();"></button><span onclick="toggleHelp();" data-tooltip="Help"><img id="helpicon" class="icon" src="img/help.svg"/></span>
 		</div>
 		
 		<script>
 			"use strict";
 			
-			// define projection for 28992 Amersfoort / RD New (Rijksdriehoekscoördinaten)
-			proj4.defs("EPSG:28992","+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155022 +y_0=463015 +ellps=bessel +towgs84=565.417,50.3319,465.552,-0.398957,0.343988,-1.8774,4.0725 +units=m +no_defs");
+			var config;
+			
+			var xhr = new XMLHttpRequest();
+			var url = 'config.json';
+			xhr.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					config = JSON.parse(this.responseText);
+					var path = window.location.pathname.split( '/' );
+					config = path[1] && config[path[1]] ? config[path[1]] : config['nl'];
+					document.getElementById('label_actions').innerHTML = config.language.actions;
+					document.getElementById('label_elevation').innerHTML = config.language.elevation;
+					document.getElementById('label_waterlevel').innerHTML = config.language.waterlevel;
+					document.getElementById('label_dataset').innerHTML = config.language.dataset;
+					document.getElementById('label_terrain').innerHTML = config.language.terrain;
+					document.getElementById('label_surface').innerHTML = config.language.surface;
+					document.getElementById('label_addsource').setAttribute('data-tooltip', config.language.addsource);
+					document.getElementById('label_addsink').setAttribute('data-tooltip', config.language.addsink);
+					document.getElementById('label_sculpt').setAttribute('data-tooltip', config.language.sculpt);
+					document.getElementById('label_togglesimulation').setAttribute('data-tooltip', config.language.togglesimulation);
+					document.getElementById('label_togglerain').setAttribute('data-tooltip', config.language.togglerain);
+					document.getElementById('label_share').setAttribute('data-tooltip', config.language.share);
+					document.getElementById('showahn').innerHTML = config.language.showelevationmap;
+					document.getElementById('nowebgl').innerHTML = config.language.warningnowebgl;
+				}
+			};
+			xhr.open('GET', url, false);
+			xhr.send();
+			
+			// define projection
+			proj4.defs(config.projection.epsg, config.projection.proj4def);
 			
 			var projection = new ol.proj.Projection({
-				code: 'EPSG:28992',
-				extent: [-285401.92,22598.08,595401.92,903402.0]
+				code: config.projection.epsg,
+				extent: config.projection.extent
 			});
 			
-			// generate resolutions and matrixIds arrays for PDOK WMTS
-			var resolutions = [3440.64, 1720.32, 860.16, 430.08, 215.04, 107.52, 53.76, 26.88, 13.44, 6.72, 3.36, 1.68, 0.84, 0.42]
-			var matrixIds = new Array(14);
-			for (var z = 0; z < 15; ++z) matrixIds[z] = 'EPSG:28992:' + z;
+			// generate resolutions and matrixIds arrays for WMTS
+			var resolutions = config.backgroundmap.resolutions;
+			var matrixIds = new Array(resolutions.length);
+			for (var z = 0; z < resolutions.length; ++z) matrixIds[z] = config.projection.epsg + ':' + z;
 			var tileGrid = new ol.tilegrid.WMTS({
 				origin: ol.extent.getTopLeft(projection.getExtent()),
 				resolutions: resolutions,
@@ -93,17 +121,17 @@
 			});
 			
 			// create background layer
-			var topografie = new ol.layer.Tile({
+			var topography = new ol.layer.Tile({
 				source: new ol.source.WMTS({
-					url: 'http://geodata.nationaalgeoregister.nl/tiles/service/wmts/brtachtergrondkaart',
+					url: config.backgroundmap.wmts,
 					crossOrigin: 'anonymous',
-					layer: 'brtachtergrondkaart',
+					layer: config.backgroundmap.layer,
 					format: 'image/png',
-					matrixSet: 'EPSG:28992',
+					matrixSet: config.projection.epsg,
 					tileGrid: tileGrid,
 					attributions: [
 						new ol.Attribution({
-							html: 'Software: <a href="https://opensource.org/licenses/Simple-2.0">SimPL-2.0</a> <a target="_blank" href="view-source:http://www.mapmind.org/">Harmen G.Zijp</a><br/>Kaartgegevens: <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.nl">CC-BY-SA</a> <a href="http://www.osm.org">OSM</a> & <a href="http://www.kadaster.nl">Kadaster</a>, <a href="http://creativecommons.org/publicdomain/zero/1.0/deed.nl">CC-0</a> <a href="http://www.ahn.nl/index.html">AHN</a>.'
+							html: config.language.attribution
 						})
 					],
 					style: 'default',
@@ -114,7 +142,7 @@
 			});
 			
 			// perform webgl check and show error message when not available
-			if (!ol.has.WEBGL) document.getElementById('no-webgl').style.display = '';
+			if (!ol.has.WEBGL) document.getElementById('nowebgl').style.display = '';
 			
 			function loadShader(url, id, type) {
 				var request = new XMLHttpRequest();
@@ -130,16 +158,28 @@
 				request.send();
 			}
 			
-			loadShader("colormap.vsh", "colormap-vertex-shader", "x-shader/x-vertex");
-			loadShader("colormap.fsh", "colormap-fragment-shader", "x-shader/x-fragment");
-			loadShader("automaton.vsh", "automaton-vertex-shader", "x-shader/x-vertex");
-			loadShader("automaton.fsh", "automaton-fragment-shader", "x-shader/x-fragment");
-			loadShader("sculpt.vsh", "sculpt-vertex-shader", "x-shader/x-vertex");
-			loadShader("sculpt.fsh", "sculpt-fragment-shader", "x-shader/x-fragment");
+			loadShader("glsl/colormap.vsh", "colormap-vertex-shader", "x-shader/x-vertex");
+			loadShader("glsl/colormap.fsh", "colormap-fragment-shader", "x-shader/x-fragment");
+			loadShader("glsl/automaton.vsh", "automaton-vertex-shader", "x-shader/x-vertex");
+			loadShader("glsl/automaton.fsh", "automaton-fragment-shader", "x-shader/x-fragment");
+			loadShader("glsl/sculpt.vsh", "sculpt-vertex-shader", "x-shader/x-vertex");
+			loadShader("glsl/sculpt.fsh", "sculpt-fragment-shader", "x-shader/x-fragment");
+			
+			var settings = {
+				"view": {
+					"coords": config.init.coords,
+					"zoom": config.init.zoom
+				},
+				"showahn": false,
+				"dataset": config.init.dataset,
+				"level": config.init.level,
+				"sculpts": [],
+				"sources": [],
+				"sinks": []
+			};
 			
 			// create AHN overlay
 			var ahnLoaded = false;
-			var ahnAvailable = false;
 			var ahnManipulate = false;
 			var ahnDrag = false;
 			var ahnState = 'init';
@@ -150,7 +190,6 @@
 			var data;
 			var zmin, zmax;
 			var nodata;
-			var level = 0.0;
 			var dw = 0.01;
 			var raining = false;
 			var simulate = false;
@@ -272,7 +311,7 @@
 						var x = event.clientX;
 						var y = event.clientY;
 						var h = data[y*width+x];
-						document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + 'm tov NAP';
+						document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + ' ' + config.language.waterlevelunit;
 					}
 				}
 				ahnState = 'draw';
@@ -282,7 +321,7 @@
 				canvasFunction: function(extent, resolution, pixelRatio, size, projection) {
 					switch(ahnState) {
 						case 'init': return ahnInit(extent, resolution, pixelRatio, size, projection); break;
-						case 'draw': if (ahn.getVisible() && ahnAvailable && ahnLoaded) return ahnDraw(extent, resolution, pixelRatio, size, projection); break;
+						case 'draw': if (ahn.getVisible() && ahnLoaded) return ahnDraw(extent, resolution, pixelRatio, size, projection); break;
 						case 'play': if (ahnLoaded && simulate) return ahnSimulate(extent, resolution, pixelRatio, size, projection); break;
 					}
 				}
@@ -328,42 +367,33 @@
 			
 			var map = new ol.Map({
 				layers: [
-					topografie,
+					topography,
 					ahn,
 					sources,
 					sinks
 				],
 				renderer: 'canvas',
 				target: 'map',
-				projection: 'EPSG:28992',
+				projection: config.projection.epsg,
 				view: new ol.View({
-					center: ol.proj.transform([5.38763888888889, 52.15616055555555], 'EPSG:4326', 'EPSG:28992'),
-					zoom: 16
+					center: ol.proj.transform(settings.view.coords, 'EPSG:4326', config.projection.epsg),
+					zoom: settings.view.zoom
 				})
 			});
 			
 			// code to rescale map and ahn overlay when zooming or changing window size
 			function ahnRedisplay() {
-				// check if bounding box is in line with capabilities of the WCS server
 				var size = map.getSize();
 				width = size[0];
 				height = size[1];
 				bbox = map.getView().calculateExtent(size);
 				var pixels = (bbox[2]-bbox[0])*(bbox[3]-bbox[1]);
-				ahnAvailable =	bbox[0]>13000.0 &&
-								bbox[1]>306250.0 &&
-								bbox[2]<279000.0 &&
-								bbox[3]<616250.0 &&
-								pixels>6400000 ?
-								false : true;
+				settings.view.coords = ol.proj.transform(map.getView().getCenter(), config.projection.epsg, 'EPSG:4326');
+				settings.view.zoom = map.getView().getZoom();
 				
 				if (ahn.getVisible()) {
-					document.getElementById('watercontrol').style.display = ahnAvailable ? 'block' : 'none';
-					document.getElementById('no-ahn').style.display = ahnAvailable ? 'none' : 'block';
-					document.getElementById('map').style.cursor = ahnAvailable ? 'crosshair' : 'default';
-				}
-				
-				if (ahnAvailable && ahn.getVisible()) {
+					document.getElementById('watercontrol').style.display = 'block';
+					document.getElementById('map').style.cursor = 'crosshair';
 					ahnState = 'init';
 					ahn.getSource().changed();
 				}
@@ -396,18 +426,24 @@
 			
 			ahnRedisplay();
 			
+			function showahn() {
+				settings.showahn = true;
+				ahn.setVisible(true);
+				document.getElementById('logo').style.display = 'none';
+				document.getElementById('watercontrol').style.display = 'block';
+				document.getElementById('showahn').innerHTML = config.language.hideelevationmap;
+				if (!ahnLoaded) ahnRedisplay();
+			}
+			function hideahn() {
+				settings.showahn = false;
+				ahn.setVisible(false);
+				document.getElementById('logo').style.display = 'block';
+				document.getElementById('watercontrol').style.display = 'none';
+				document.getElementById('showahn').innerHTML = config.language.hideelevationmap;
+			}
 			function toggleahn(obj) {
-				if (obj.checked) {
-					ahn.setVisible(true);
-					document.getElementById('logo').style.display = 'none';
-					document.getElementById('watercontrol').style.display = 'block';
-					if (!ahnLoaded) ahnRedisplay();
-				}
-				else {
-					ahn.setVisible(false);
-					document.getElementById('logo').style.display = 'block';
-					document.getElementById('watercontrol').style.display = 'none';
-				}
+				if (settings.showahn) hideahn();
+				else showahn();
 			}
 			
 			// callback routines for zoom and drag operations
@@ -422,42 +458,48 @@
 				}
 			});
 			
-			var registerNewSource = function(e) {
+			function registerNewSource(coordinate) {
 				var newSource = new ol.Feature({
-					geometry: new ol.geom.Point(e.coordinate)
+					geometry: new ol.geom.Point(coordinate)
 					//,capacity: 1
 				});
 				sourcesList.addFeature(newSource);
 				document.getElementById('map').style.cursor = 'crosshair';
-				map.un('click', registerNewSource);
 				ahnManipulate = false;
 			}
-			
+			function clickSource(e) {
+				registerNewSource(e.coordinate);
+				settings.sources.push(e.coordinate);
+				map.un('click', clickSource);
+			}
 			function addSource() {
 				if (sourcesList.getFeatures().length<maxSources) {
-					ahnManipulate = true;
+					gManipulate = true;
 					document.getElementById('map').style.cursor = "url('source.png') 18 18, auto";
-					map.on('click', registerNewSource);
+					map.on('click', clickSource);
 				}
 				else alert('cannot add more than ' + maxSources + ' sources!');
 			}
 			
-			var registerNewSink = function(e) {
+			function registerNewSink(coordinate) {
 				var newSink = new ol.Feature({
-					geometry: new ol.geom.Point(e.coordinate)
+					geometry: new ol.geom.Point(coordinate)
 					//,capacity: 1
 				});
 				sinksList.addFeature(newSink);
 				document.getElementById('map').style.cursor = 'crosshair';
-				map.un('click', registerNewSink);
 				ahnManipulate = false;
 			}
-			
+			function clickSink(e) {
+				registerNewSink(e.coordinate);
+				settings.sinks.push(e.coordinate);
+				map.un('click', clickSink);
+			}
 			function addSink() {
 				if (sourcesList.getFeatures().length<maxSources) {
 					ahnManipulate = true;
 					document.getElementById('map').style.cursor = "url('sink.png') 18 18, auto";
-					map.on('click', registerNewSink);
+					map.on('click', clickSink);
 				}
 				else alert('cannot add more than ' + maxSinks + ' sinks!');
 			}
@@ -489,6 +531,8 @@
 			
 			function sculpt() {
 				ahnManipulate = true;
+				map.getInteractions().forEach(function(interaction) { if (interaction instanceof ol.interaction.DragPan) { interaction.setActive(false); } }, this);
+				
 				elevationInterpolationData.clear();
 				drawInterpolation = new ol.interaction.Draw({
 					source: elevationInterpolationData,
@@ -502,12 +546,10 @@
 					var geometry = feature.getGeometry();
 					var coordinates = geometry.getCoordinates();
 					
-					var startCoord = geometry.getFirstCoordinate();
-					var endCoord = geometry.getLastCoordinate();
-					
 					var startCoord = map.getPixelFromCoordinate(coordinates[0]);
 					var endCoord = map.getPixelFromCoordinate(coordinates[coordinates.length-1]);
 					ahnInterpolate(startCoord, endCoord);
+					settings.sculpts.push([coordinates[0], coordinates[coordinates.length-1]]);
 					
 					interpolation.setVisible(false);
 					map.removeInteraction(drawInterpolation);
@@ -515,18 +557,19 @@
 					ahn.getSource().changed();
 					
 					ahnManipulate = false;
+					map.getInteractions().forEach(function(interaction) { if (interaction instanceof ol.interaction.DragPan) { interaction.setActive(true); } }, this);
 				});
 			}
 			
 			function togglerain(obj) {
 				raining = !raining;
-				document.getElementById('rainicon').src = raining ? 'rainon.svg' : 'rainoff.svg';
+				document.getElementById('rainicon').src = raining ? 'img/rainon.svg' : 'img/rainoff.svg';
 			}
 			
 			var simfunc;
 			function togglesimulation(obj) {
 				simulate = !simulate;
-				document.getElementById('playicon').src = simulate ? 'pause.svg' : 'play.svg';
+				document.getElementById('playicon').src = simulate ? 'img/pause.svg' : 'img/play.svg';
 				if (simulate) {
 					for (var i=0; i<sourcesList.getFeatures().length; i++) {
 						var coord = sourcesList.getFeatures()[i].getGeometry().getCoordinates();
@@ -547,11 +590,10 @@
 			function loaddata() {
 				document.getElementById('loadingicon').style.visibility = 'visible';
 				
-				var dataset = document.getElementById('dataset').value;
-				var ahn2 = "http://geodata.nationaalgeoregister.nl/ahn2/wcs?service=WCS&version=1.0.0&request=GetCoverage&coverage=ahn2:ahn2_05m_" + dataset + "&crs=EPSG:28992&bbox=" + bbox + "&width=" + width + "&height=" + height + "&format=image/tiff";
+				var url = eval(config.elevationmap.wcs);
 				
 				var xhr = new XMLHttpRequest();
-				xhr.open('GET', ahn2, true);
+				xhr.open('GET', url, true);
 				xhr.responseType = 'arraybuffer';
 				xhr.onload = function(e) {
 					// get data from tiff file
@@ -561,7 +603,7 @@
 					// get min and max elevation
 					zmin = Number.MAX_VALUE;
 					zmax = Number.MIN_VALUE;
-					nodata = -3.4028234663852886e+38;
+					nodata = 3.4028234663852886e+38;
 					for (var i=0;i<data.length;i++) {
 						if (data[i]!=nodata) {
 							zmin = Math.min(zmin, data[i]);
@@ -650,23 +692,29 @@
 						gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureElevationB, 0);
 					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 					
-					var waterlevel = document.getElementById("waterlevel").value;
+					var waterlevel = settings.level;
 					if (waterlevel<zmin) waterlevel = zmin;
 					else if (waterlevel>zmax) waterlevel = zmax;
 					
 					document.getElementById("waterlevel").min = zmin;
 					document.getElementById("waterlevel").max = zmax;
 					document.getElementById("waterlevel").value = waterlevel;
-					document.getElementById("peil").innerHTML = parseFloat(waterlevel).toFixed(2) + 'm';
-					level = (waterlevel-zmin)/(zmax-zmin);
+					document.getElementById("level").value = waterlevel;
+					settings.level = waterlevel;
 					
 					document.getElementById("waterlevel").step = (zmax-zmin)/100;
 					document.getElementById("waterlevel").oninput = function() {
-						document.getElementById("peil").innerHTML = parseFloat(document.getElementById("waterlevel").value).toFixed(2) + 'm';
-						level = (document.getElementById("waterlevel").value-zmin)/(zmax-zmin);
+						document.getElementById("level").value = document.getElementById("waterlevel").value;
+						settings.level = document.getElementById("waterlevel").value;
+						ahn.getSource().changed();
+					}
+					document.getElementById("level").oninput = function() {
+						document.getElementById("waterlevel").value = document.getElementById("level").value;
+						settings.level = document.getElementById("level").value;
 						ahn.getSource().changed();
 					}
 					document.getElementById("dataset").onchange = function() {
+						settings.dataset =  document.getElementById('dataset').value;
 						ahnLoaded = false;
 						ahnRedisplay();
 					}
@@ -674,12 +722,60 @@
 					ahnLoaded = true;
 					ahn.getSource().changed();
 					
+					if (settings.sculpts.length) {
+						for (var i=0; i<settings.sculpts.length; i++) {
+							var startCoord = map.getPixelFromCoordinate(settings.sculpts[i][0]);
+							var endCoord = map.getPixelFromCoordinate(settings.sculpts[i][1]);
+							ahnInterpolate(startCoord, endCoord);
+							ahn.getSource().changed();
+						}
+					}
 					document.getElementById('loadingicon').style.visibility = 'hidden';
 				}
 				xhr.send();
 			}
+			
+			function parseSettings() {
+				const urlParams = new URLSearchParams(window.location.search);
+				if(urlParams.has('settings')) {
+					settings = JSON.parse(window.atob(urlParams.get('settings')));
+					document.getElementById('dataset').value = settings.dataset;
+					document.getElementById('showahn').checked = settings.showahn;
+					map.setView(new ol.View({
+						center: ol.proj.transform(settings.view.coords, 'EPSG:4326', 'EPSG:28992'),
+						zoom: settings.view.zoom
+					}));
+					map.getView().on('propertychange', function(e) {
+						switch (e.key) {
+							case 'zoom':
+							case 'center':
+							case 'resolution':
+								ahnLoaded = false;
+								if (!ahnDrag) ahnRedisplay();
+								break;
+						}
+					});
+					if (settings.showahn) {
+						showahn();
+						for (var i=0; i<settings.sources.length; i++) registerNewSource(settings.sources[i]);
+						for (var i=0; i<settings.sinks.length; i++) registerNewSink(settings.sinks[i]);
+					}
+				}
+			}
+
+			function shareSettings() {
+				var url = window.location.href.split('?')[0] + '?settings=' + window.btoa(JSON.stringify(settings));
+
+				var el = document.createElement('textarea');
+				el.value = url;
+				document.body.appendChild(el);
+				el.select();
+				document.execCommand('copy');
+				document.body.removeChild(el);
+
+				alert(config.language.urlcopied);
+			}
 		</script>
-		
 <!--		<script src="loader.js?id=mobile-full-screen" type="text/javascript"></script>-->
 	</body>
 </html>
