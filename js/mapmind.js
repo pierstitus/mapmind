@@ -64,8 +64,11 @@ var ahnDraw = function(extent, resolution, pixelRatio, size, projection) {
 	
 	// Draw the rectangle
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-		var canvasOrigin = map.getPixelFromCoordinate([extent[0], extent[3]]);
-		gl.viewport(-pixelRatio*canvasOrigin[0], -pixelRatio*canvasOrigin[1], pixelRatio*width, pixelRatio*height);
+		var canvasOrigin = map.getPixelFromCoordinate([extent[0], extent[1]]);
+		var mapOrigin = map.getPixelFromCoordinate([bbox[0], bbox[1]]);
+		var delta = [mapOrigin[0]-canvasOrigin[0], mapOrigin[1]-canvasOrigin[1]];
+		var zoomdelta = Math.pow(2, map.getView().getZoom() - settings.view.zoom);
+		gl.viewport(pixelRatio*delta[0], -pixelRatio*delta[1], pixelRatio*width*zoomdelta, pixelRatio*height*zoomdelta);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		gl.drawArrays(gl.TRIANGLES, 0, 6);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);

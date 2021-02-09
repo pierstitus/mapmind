@@ -306,14 +306,17 @@
 				
 				loaddata();
 				
-				document.getElementById('map').onmousemove = function(event) {
-					if (!ahnManipulate && !ahnDrag) {
-						var x = event.clientX;
-						var y = event.clientY;
-						var h = data[y*width+x];
-						document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + ' ' + config.language.waterlevelunit;
+				map.on('pointermove', function(e) {
+					if (data && !ahnManipulate && !ahnDrag) {
+						var pixel = ahnGetPixelFromCoordinate(e.coordinate);
+						var x = Math.round(pixel[0]);
+						var y = Math.round(pixel[1]);
+						if (x>0 && x<width && y>0 && y<height) {
+							var h = data[y*width+x];
+							document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + ' ' + config.language.waterlevelunit;
+						}
 					}
-				}
+				});
 				ahnState = 'draw';
 			}
 			
@@ -380,8 +383,18 @@
 				})
 			});
 			
+			function ahnGetPixelFromCoordinate(coordinate) {
+				var pixel = map.getPixelFromCoordinate([coordinate[0], coordinate[1]]);
+				var mapOrigin = map.getPixelFromCoordinate([bbox[0], bbox[3]]);
+				var delta = [pixel[0]-mapOrigin[0], pixel[1]-mapOrigin[1]];
+				var zoomdelta = Math.pow(2, settings.view.zoom - map.getView().getZoom());
+				return [delta[0]*zoomdelta, delta[1]*zoomdelta];
+			}
+
 			// code to rescale map and ahn overlay when zooming or changing window size
 			function ahnRedisplay() {
+				if (simulate) togglesimulation();
+
 				var size = map.getSize();
 				width = size[0];
 				height = size[1];
@@ -395,30 +408,8 @@
 					ahnState = 'init';
 					ahn.getSource().changed();
 				}
-				else document.getElementById('map').onmousemove = null;
-			}
-			
-			window.addEventListener("resize", ahnRedisplay);
-			
-			document.getElementById('map').onmousedown = function(e) {
-				if (!ahnManipulate) ahnDrag = true;
-			}
-			
-			document.getElementById('map').onmouseup = function(e) {
-				if (ahnDrag) {
-					ahnDrag = false;
-					ahnRedisplay();
-				}
-			}
-			
-			document.getElementById('map').ontouchstart = function(e) {
-				if (!ahnManipulate) ahnDrag = true;
-			}
-			
-			document.getElementById('map').ontouchend = function(e) {
-				if (ahnDrag) {
-					ahnDrag = false;
-					ahnRedisplay();
+				else {
+					map.un('pointermove');
 				}
 			}
 			
@@ -443,18 +434,6 @@
 				if (settings.showahn) hideahn();
 				else showahn();
 			}
-			
-			// callback routines for zoom and drag operations
-			map.getView().on('propertychange', function(e) {
-				switch (e.key) {
-					case 'zoom':
-					case 'center':
-					case 'resolution':
-						ahnLoaded = false;
-						if (!ahnDrag) ahnRedisplay();
-						break;
-				}
-			});
 			
 			function registerNewSource(coordinate) {
 				var newSource = new ol.Feature({
@@ -544,8 +523,8 @@
 					var geometry = feature.getGeometry();
 					var coordinates = geometry.getCoordinates();
 					
-					var startCoord = map.getPixelFromCoordinate(coordinates[0]);
-					var endCoord = map.getPixelFromCoordinate(coordinates[coordinates.length-1]);
+					var startCoord = ahnGetPixelFromCoordinate(coordinates[0]);
+					var endCoord = ahnGetPixelFromCoordinate(coordinates[coordinates.length-1]);
 					ahnInterpolate(startCoord, endCoord);
 					settings.sculpts.push([coordinates[0], coordinates[coordinates.length-1]]);
 					
@@ -571,13 +550,13 @@
 				if (simulate) {
 					for (var i=0; i<sourcesList.getFeatures().length; i++) {
 						var coord = sourcesList.getFeatures()[i].getGeometry().getCoordinates();
-						var pixcoord = map.getPixelFromCoordinate(coord);
+						var pixcoord = ahnGetPixelFromCoordinate(coord);
 						sourcesCoordList[2*i] = pixcoord[0]/width;
 						sourcesCoordList[2*i+1] = pixcoord[1]/height;
 					}
 					for (var i=0; i<sinksList.getFeatures().length; i++) {
 						var coord = sinksList.getFeatures()[i].getGeometry().getCoordinates();
-						var pixcoord = map.getPixelFromCoordinate(coord);
+						var pixcoord = ahnGetPixelFromCoordinate(coord);
 						sinksCoordList[2*i] = pixcoord[0]/width;
 						sinksCoordList[2*i+1] = pixcoord[1]/height;
 					}
@@ -722,8 +701,8 @@
 					
 					if (settings.sculpts.length) {
 						for (var i=0; i<settings.sculpts.length; i++) {
-							var startCoord = map.getPixelFromCoordinate(settings.sculpts[i][0]);
-							var endCoord = map.getPixelFromCoordinate(settings.sculpts[i][1]);
+							var startCoord = ahnGetPixelFromCoordinate(settings.sculpts[i][0]);
+							var endCoord = ahnGetPixelFromCoordinate(settings.sculpts[i][1]);
 							ahnInterpolate(startCoord, endCoord);
 							ahn.getSource().changed();
 						}
@@ -743,16 +722,6 @@
 						center: ol.proj.transform(settings.view.coords, 'EPSG:4326', 'EPSG:28992'),
 						zoom: settings.view.zoom
 					}));
-					map.getView().on('propertychange', function(e) {
-						switch (e.key) {
-							case 'zoom':
-							case 'center':
-							case 'resolution':
-								ahnLoaded = false;
-								if (!ahnDrag) ahnRedisplay();
-								break;
-						}
-					});
 					if (settings.showahn) {
 						showahn();
 						for (var i=0; i<settings.sources.length; i++) registerNewSource(settings.sources[i]);
