@@ -146,7 +146,7 @@
 			
 			function loadShader(url, id, type) {
 				var request = new XMLHttpRequest();
-				request.open('POST', url, true);
+				request.open('GET', url, true);
 				request.overrideMimeType("text/plain");
 				request.addEventListener('load', function() {
 					var script = document.createElement('script');
