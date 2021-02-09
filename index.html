@@ -344,7 +344,7 @@
 						anchor: [0.5, 0.5],
 						anchorXUnits: 'fraction',
 						anchorYUnits: 'fraction',
-						src: 'source.png'
+						src: 'img/source.png'
 					}))
 				})
 			});
@@ -360,7 +360,7 @@
 						anchor: [0.5, 0.5],
 						anchorXUnits: 'fraction',
 						anchorYUnits: 'fraction',
-						src: 'sink.png'
+						src: 'img/sink.png'
 					}))
 				})
 			});
@@ -474,8 +474,8 @@
 			}
 			function addSource() {
 				if (sourcesList.getFeatures().length<maxSources) {
-					gManipulate = true;
-					document.getElementById('map').style.cursor = "url('source.png') 18 18, auto";
+					ahnManipulate = true;
+					document.getElementById('map').style.cursor = "url('img/source.png') 18 18, auto";
 					map.on('click', clickSource);
 				}
 				else alert('cannot add more than ' + maxSources + ' sources!');
@@ -498,7 +498,7 @@
 			function addSink() {
 				if (sourcesList.getFeatures().length<maxSources) {
 					ahnManipulate = true;
-					document.getElementById('map').style.cursor = "url('sink.png') 18 18, auto";
+					document.getElementById('map').style.cursor = "url('img/sink.png') 18 18, auto";
 					map.on('click', clickSink);
 				}
 				else alert('cannot add more than ' + maxSinks + ' sinks!');
