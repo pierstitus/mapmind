@@ -68,7 +68,7 @@
 			<div id="logo">
 				<a href="https://universiteitamersfoort.nl"><img src="img/cua.png" /></a>
 			</div>
-			<button id="showahn" onclick="toggleahn();"></button><span onclick="toggleHelp();" data-tooltip="Help"><img id="helpicon" class="icon" src="img/help.svg"/></span>
+			<button id="showahn" onclick="loadahn();"></button><span onclick="toggleHelp();" data-tooltip="Help"><img id="helpicon" class="icon" src="img/help.svg"/></span>
 		</div>
 		
 		<script>
@@ -393,6 +393,7 @@
 
 			// code to rescale map and ahn overlay when zooming or changing window size
 			function ahnRedisplay() {
+				ahnLoaded = false;
 				if (simulate) togglesimulation();
 
 				var size = map.getSize();
@@ -415,6 +416,13 @@
 			
 			ahnRedisplay();
 			
+			function loadahn() {
+				settings.showahn = true;
+				ahn.setVisible(true);
+				document.getElementById('logo').style.display = 'none';
+				document.getElementById('watercontrol').style.display = 'block';
+				ahnRedisplay();
+			}
 			function showahn() {
 				settings.showahn = true;
 				ahn.setVisible(true);
@@ -692,7 +700,6 @@
 					}
 					document.getElementById("dataset").onchange = function() {
 						settings.dataset =  document.getElementById('dataset').value;
-						ahnLoaded = false;
 						ahnRedisplay();
 					}
 					
