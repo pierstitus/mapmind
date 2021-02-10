@@ -81,8 +81,15 @@ void main() {
 		// calculate flow away from gridpoint
 		if (waterlevel(0) > 0.0) {
 			float flowsum = 0.0;
-			for (int dir=1; dir<9; dir++) {
+			for (int dir=1; dir<5; dir++) {
 				float flow = (elevation(0) + waterlevel(0) - elevation(dir) - waterlevel(dir)) * 0.5;
+				if (flow < 0.0) flow = 0.0;
+				flowsum += flow;
+				if (flow > maxflow) maxflow = flow;
+			}
+			// spread slower in diagonals to spread evenly in every direction
+			for (int dir=5; dir<9; dir++) {
+				float flow = (elevation(0) + waterlevel(0) - elevation(dir) - waterlevel(dir)) * 0.5 * 0.7071;
 				if (flow < 0.0) flow = 0.0;
 				flowsum += flow;
 				if (flow > maxflow) maxflow = flow;
@@ -101,8 +108,15 @@ void main() {
 		float level = waterlevel(0) - 255.0*texture2D(waterlevelMap, v_texCoord).b;
 		
 		// account flow to gridpoint
-		for (int dir=1; dir<9; dir++) {
+		for (int dir=1; dir<5; dir++) {
 			float flow = -(elevation(0) + waterlevel(0) - elevation(-dir) - waterlevel(-dir)) * 0.5;
+			if (flow < 0.0) flow = 0.0;
+			float flowfactor = texture2D(waterlevelMap, coord(-dir)).a;
+			level += flow * flowfactor;
+		}
+		// spread slower in diagonals to spread evenly in every direction
+		for (int dir=5; dir<9; dir++) {
+			float flow = -(elevation(0) + waterlevel(0) - elevation(-dir) - waterlevel(-dir)) * 0.5 * 0.7071;
 			if (flow < 0.0) flow = 0.0;
 			float flowfactor = texture2D(waterlevelMap, coord(-dir)).a;
 			level += flow * flowfactor;
