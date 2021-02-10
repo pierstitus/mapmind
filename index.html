@@ -322,7 +322,6 @@
 					switch(ahnState) {
 						case 'init': return ahnInit(extent, resolution, pixelRatio, size, projection); break;
 						case 'draw': if (ahn.getVisible() && ahnLoaded) return ahnDraw(extent, resolution, pixelRatio, size, projection); break;
-						case 'play': if (ahnLoaded && simulate) return ahnSimulate(extent, resolution, pixelRatio, size, projection); break;
 					}
 				}
 			});
@@ -387,7 +386,6 @@
 				width = size[0];
 				height = size[1];
 				bbox = map.getView().calculateExtent(size);
-				var pixels = (bbox[2]-bbox[0])*(bbox[3]-bbox[1]);
 				settings.view.coords = ol.proj.transform(map.getView().getCenter(), config.projection.epsg, 'EPSG:4326');
 				settings.view.zoom = map.getView().getZoom();
 				
