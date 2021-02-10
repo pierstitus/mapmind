@@ -55,7 +55,7 @@ vec2 coord(int dir) {
 }
 
 float elevation(int dir) {
-	return (zmax-zmin)*texture2D(elevationMap, coord(dir)).r/dw;
+	return (zmax-zmin)*(texture2D(elevationMap, coord(dir)).r + texture2D(elevationMap, coord(dir)).g/255.0)/dw;
 }
 
 float waterlevel(int dir) {

@@ -634,9 +634,16 @@
 					// write elevation data into texture data
 					var pixels = new Float32Array(width*height*4);
 					for (var i=0;i<data.length;i++) {
-						if (data[i]!=nodata) pixels[4*i] = (data[i]-zmin)/(zmax-zmin);
-						else pixels[4*i] = 0;
-						pixels[4*i+1] = 0;
+						if (data[i]!=nodata) {
+							var scaled = (data[i]-zmin)/(zmax-zmin) * 255.0;
+							var msb = Math.floor(scaled);
+							pixels[4*i] = msb / 255.0;
+							pixels[4*i+1] = scaled - msb;
+						}
+						else {
+							pixels[4*i] = 0;
+							pixels[4*i+1] = 0;
+						}
 						pixels[4*i+2] = 0;
 						pixels[4*i+3] = 0;
 					}
