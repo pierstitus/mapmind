@@ -38,11 +38,11 @@ vec4 col(float h) {
 
 void main() {
 	float elevation = texture2D(elevationMap, v_texCoord).r;
-	float waterlayer = texture2D(waterlevelMap, v_texCoord).r;
+	float waterlayer = texture2D(waterlevelMap, v_texCoord).r + texture2D(waterlevelMap, v_texCoord).g/255.0;
 	
 	if (elevation==0.0) gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	else {
-		if (waterlayer > 0.0 && waterlayer > level - elevation) gl_FragColor = col(-waterlayer);
+		if (waterlayer > 0.0001 && waterlayer > level - elevation) gl_FragColor = col(-waterlayer);
 		else gl_FragColor = col(elevation - level);
 	}
 }
