@@ -26,6 +26,8 @@ uniform float dw; // water increment
 uniform float du; // the width of the cells
 uniform float dv; // the height of the cells
 
+const float outflowrange = 10.0; // defines the resolution of outflow as it is only 8bit
+
 uniform int rain;
 uniform float lastX;
 uniform float lastY;
@@ -77,7 +79,7 @@ int rand(vec2 co, int max) {
 void main() {
 	if (pass == 0) {
 		float flowfactor = 0.0;
-		float maxflow = 0.0;
+		float outflow = 0.0;
 		// calculate flow away from gridpoint
 		if (waterlevel(0) > 0.0) {
 			float flowsum = 0.0;
@@ -85,27 +87,31 @@ void main() {
 				float flow = (elevation(0) + waterlevel(0) - elevation(dir) - waterlevel(dir)) * 0.5;
 				if (flow < 0.0) flow = 0.0;
 				flowsum += flow;
-				if (flow > maxflow) maxflow = flow;
+				if (flow > outflow) outflow = flow;
 			}
 			// spread slower in diagonals to spread evenly in every direction
 			for (int dir=5; dir<9; dir++) {
 				float flow = (elevation(0) + waterlevel(0) - elevation(dir) - waterlevel(dir)) * 0.5 * 0.7071;
 				if (flow < 0.0) flow = 0.0;
 				flowsum += flow;
-				if (flow > maxflow) maxflow = flow;
+				if (flow > outflow) outflow = flow;
 			}
-			if (maxflow > waterlevel(0) * 1.0) {
-				maxflow = waterlevel(0) * 1.0;
+			if (outflow > waterlevel(0) * 1.0) {
+				outflow = waterlevel(0) * 1.0;
+			}
+			if (outflow > outflowrange) {
+				outflow = outflowrange;
 			}
 			if (flowsum > 0.0) {
-				flowfactor = maxflow / flowsum;
+				flowfactor = outflow / flowsum;
 			}
 		}
-		gl_FragColor = vec4(texture2D(waterlevelMap, v_texCoord).r, texture2D(waterlevelMap, v_texCoord).g, maxflow/255.0, flowfactor);
+		gl_FragColor = vec4(texture2D(waterlevelMap, v_texCoord).r, texture2D(waterlevelMap, v_texCoord).g, outflow/outflowrange, flowfactor);
 	}
 	else { // pass == 1
 		// level minus flow away from gridpoint
-		float level = waterlevel(0) - 255.0*texture2D(waterlevelMap, v_texCoord).b;
+		float outflow = outflowrange*texture2D(waterlevelMap, v_texCoord).b;
+		float level = waterlevel(0) - outflow;
 		
 		// account flow to gridpoint
 		for (int dir=1; dir<5; dir++) {
@@ -123,7 +129,7 @@ void main() {
 		}
 
 		// apply raining...
-		if ((rain==1) && (rand(coord(rseed), 8)==0)) level += 1.0;
+		if ((rain==1) && (rand(coord(rseed), 8)==0)) level += 0.1;
 		
 		// apply sources and sinks
 		vec2 scale = vec2(1, du/dv);
