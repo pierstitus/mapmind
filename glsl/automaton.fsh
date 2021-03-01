@@ -83,6 +83,7 @@ void main() {
 		// calculate flow away from gridpoint
 		if (waterlevel(0) > 0.0) {
 			float flowsum = 0.0;
+			// outflow to neighboring gridcells
 			for (int dir=1; dir<5; dir++) {
 				float flow = (elevation(0) + waterlevel(0) - elevation(dir) - waterlevel(dir)) * 0.5;
 				if (flow < 0.0) flow = 0.0;
@@ -96,9 +97,11 @@ void main() {
 				flowsum += flow;
 				if (flow > outflow) outflow = flow;
 			}
-			if (outflow > waterlevel(0) * 1.0) {
-				outflow = waterlevel(0) * 1.0;
+			// limit outflow to water level
+			if (outflow > waterlevel(0)) {
+				outflow = waterlevel(0);
 			}
+			// limit outflow to flowrange, higher values can't be stored in the 8 bit value
 			if (outflow > outflowrange) {
 				outflow = outflowrange;
 			}
