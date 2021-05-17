@@ -23,7 +23,7 @@
 			"actions": "acties",
 			"elevation": "hoogte",
 			"waterlevel": "waterpeil",
-			"waterlevelunit": "m + NAP",
+			"waterlevelunit": "m +NAP",
 			"dataset": "dataset",
 			"terrain": "maaiveld",
 			"surface": "ruwe data",
