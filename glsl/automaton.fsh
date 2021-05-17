@@ -97,6 +97,10 @@ void main() {
 				flowsum += flow;
 				if (flow > outflow) outflow = flow;
 			}
+			// add momentum based on previous outflow (better would be to incorporate direction of momentum, but as
+			// storage is limited to 4 bytes we just take the outflow)
+			// 0.5 or higher is unstable, so 0.4 seems a nice choice
+			outflow += 0.4 * texture2D(waterlevelMap, v_texCoord).b*outflowrange;
 			// limit outflow to water level
 			if (outflow > waterlevel(0)) {
 				outflow = waterlevel(0);
@@ -153,7 +157,7 @@ void main() {
 		}
 		else {
 			float l1 = floor(level);
-			gl_FragColor = vec4(l1/255.0, level-l1, 0.0, 0.0);
+			gl_FragColor = vec4(l1/255.0, level-l1, texture2D(waterlevelMap, v_texCoord).b, 0.0);
 		}
 	}
 }
