@@ -28,7 +28,7 @@ uniform float dv; // the height of the cells
 
 const float outflowrange = 10.0; // defines the resolution of outflow as it is only 8bit
 
-uniform int rain;
+uniform float rain;
 uniform float lastX;
 uniform float lastY;
 uniform float currX;
@@ -62,18 +62,6 @@ float elevation(int dir) {
 
 float waterlevel(int dir) {
 	return 255.0*texture2D(waterlevelMap, coord(dir)).r + texture2D(waterlevelMap, coord(dir)).g;
-}
-
-int rand(vec2 co, int max) {
-	float a = 12.9898;
-	float b = 78.233;
-	float c = 43758.5453;
-	float dt = dot(co.xy ,vec2(a,b));
-	float sn = mod(dt, 3.14);
-	int rnd = int(float(max)*fract(abs(sin(sn) * c)));
-	if (rnd<0) rnd = 0;
-	if (rnd>=max) rnd = max-1;
-	return rnd;
 }
 
 void main() {
@@ -136,7 +124,7 @@ void main() {
 		}
 
 		// apply raining...
-		if ((rain==1) && (rand(coord(rseed), 8)==0)) level += 0.1;
+		level += rain;
 		
 		// apply sources and sinks
 		vec2 scale = vec2(1, du/dv);

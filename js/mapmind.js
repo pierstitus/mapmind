@@ -125,7 +125,7 @@ function ahnSimulate() {
 	gl.uniform1f(gl.getUniformLocation(shaderAutomaton, "dv"), 1.0/height); // pass in the height of the cells
 	gl.uniform1f(gl.getUniformLocation(shaderAutomaton, "dw"), dw); // pass water increment
 	
-	gl.uniform1i(gl.getUniformLocation(shaderAutomaton, "rain"), raining ? 1 : 0);
+	gl.uniform1f(gl.getUniformLocation(shaderAutomaton, "rain"), raining);
 	
 	gl.uniform1i(gl.getUniformLocation(shaderAutomaton, "nSources"), sourcesList.getFeatures().length);
 	gl.uniform2fv(gl.getUniformLocation(shaderAutomaton, "sourceCoords"), sourcesCoordList);

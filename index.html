@@ -191,7 +191,7 @@
 			var zmin, zmax;
 			var nodata;
 			var dw = 0.1;
-			var raining = false;
+			var raining = 0.0;
 			var simulate = false;
 			var maxSources = 16;
 			var sourcesCoordList = new Float32Array(32);
@@ -561,8 +561,8 @@
 			}
 			
 			function togglerain(obj) {
-				raining = !raining;
-				document.getElementById('rainicon').src = raining ? 'img/rainon.svg' : 'img/rainoff.svg';
+				raining = raining? 0.0 : 0.001;
+				document.getElementById('rainicon').src = raining > 0 ? 'img/rainon.svg' : 'img/rainoff.svg';
 			}
 			
 			var simfunc;
