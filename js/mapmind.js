@@ -16,10 +16,12 @@ var elevationTextureIndex = 1;
 
 var ahnDraw = function(extent, resolution, pixelRatio, size, projection) {
 	if (simulate) {
-		// pass 0
-		ahnSimulate();
-		// pass 1
-		ahnSimulate();
+		for (var i=0; i<1; i++) {
+			// pass 0
+			ahnSimulate();
+			// pass 1
+			ahnSimulate();
+		}
 	}
 	
 	// setup GLSL program
