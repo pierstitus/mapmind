@@ -313,7 +313,21 @@
 						var y = Math.round(pixel[1]);
 						if (x>0 && x<width && y>0 && y<height) {
 							var h = data[y*width+x];
-							document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + ' ' + config.language.waterlevelunit;
+
+							// read water level from texture
+							var pixels = new Float32Array(4);
+							gl.bindFramebuffer(gl.FRAMEBUFFER, fboWaterLevelA);
+							if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE) {
+								gl.readPixels(x, y, 1, 1, gl.RGBA, gl.FLOAT, pixels);
+							}
+							// unbind this framebuffer so its memory can be reclaimed.
+							gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+							var wl = dw * (pixels[0]*255.0+pixels[1]);
+							var flow = 10.0 * dw * pixels[2];
+
+							document.getElementById('elevation').innerHTML = (h==nodata) ? '' : h.toFixed(2) + ' ' + config.language.waterlevelunit
+							 + ', ' + wl.toFixed(2) + ' m water'
+							 + ', ' + flow.toFixed(2) + ' m flow';
 						}
 					}
 				});
