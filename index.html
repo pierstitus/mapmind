@@ -702,13 +702,30 @@
 					if (waterlevel<zmin) waterlevel = zmin;
 					else if (waterlevel>zmax) waterlevel = zmax;
 					
-					document.getElementById("waterlevel").min = zmin;
-					document.getElementById("waterlevel").max = zmax;
+					// waterlevel rounding to decimal place such that there are between 100 and 1000 steps between min and max level
+					var rounding = Math.pow(10,Math.floor(Math.log10((zmax-zmin)/100)));
+					document.getElementById("waterlevel").min = rounding * Math.floor(zmin/rounding);
+					document.getElementById("waterlevel").max = rounding * Math.ceil(zmax/rounding);
 					document.getElementById("waterlevel").value = waterlevel;
 					document.getElementById("level").value = waterlevel;
 					settings.level = waterlevel;
+
+					// More precise waterlevel selection when Control is pressed
+					document.onkeydown = function(e) {
+						if (e.keyCode === 17) {
+							document.getElementById("waterlevel").step = rounding / 10;
+							document.getElementById("level").step = rounding / 10;
+						}
+					}
+					document.onkeyup = function(e) {
+						if (e.keyCode === 17) {
+							document.getElementById("waterlevel").step = rounding;
+							document.getElementById("level").step = rounding;
+						}
+					}
 					
-					document.getElementById("waterlevel").step = (zmax-zmin)/100;
+					document.getElementById("waterlevel").step = rounding;
+					document.getElementById("level").step = rounding;
 					document.getElementById("waterlevel").oninput = function() {
 						document.getElementById("level").value = document.getElementById("waterlevel").value;
 						settings.level = document.getElementById("waterlevel").value;
